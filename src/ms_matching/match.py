@@ -28,6 +28,7 @@ def do_match(
     error_tol=20,
     error_tol_units="ppm",
     verbose=True,
+    maxcharge=None,
     **kwargs,
 ):
     """
@@ -55,14 +56,16 @@ def do_match(
 
     params = raw_mz["params"]
     parent_ion_charge = int(params["charge"][0])
+    if maxcharge is None:
+        maxcharge = parent_ion_charge - 1
     mz_array = raw_mz["m/z array"]
     intensity_array = raw_mz["intensity array"]
 
     b_fragments = list(
-        make_fragments(peptide_sequence, types="b", maxcharge=parent_ion_charge - 1)
+        make_fragments(peptide_sequence, types="b", maxcharge=maxcharge)
     )
     y_fragments = list(
-        make_fragments(peptide_sequence, types="y", maxcharge=parent_ion_charge - 1)
+        make_fragments(peptide_sequence, types="y", maxcharge=maxcharge)
     )
 
     # how does this work?
