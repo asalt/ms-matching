@@ -7,12 +7,15 @@ from ms_matching import match
 
 import numpy as np
 
+from ms_matching.db import open_db, store_mod_definitions, create_schema, load_mod_definitions
+
 
 default_tag_map = {
     15.995: "ox",
     79.966: "ph",
     42.011: "ac",
 }
+default_aa_mass = dict(mass.std_aa_mass)
 
 
 def mz_to_bin(mz_array, bin_width):  # TODO let it take ppm
@@ -20,7 +23,9 @@ def mz_to_bin(mz_array, bin_width):  # TODO let it take ppm
     return np.round((mz_array - bin_width / 2) / bin_width).astype(int)
 
 
-def build_aa_mass_from_variable_mods(config, tag_map=default_tag_map):
+def build_aa_mass_from_variable_mods(
+    config, tag_map=default_tag_map, aa_mass=default_aa_mass
+):
     """
     Parses MSFragger-style variable_mod entries into a pyteomics-compatible aa_mass dict.
 
@@ -32,7 +37,7 @@ def build_aa_mass_from_variable_mods(config, tag_map=default_tag_map):
         aa_mass: modified dict for pyteomics
         mod_aliases: mapping from base AA to modified tag name
     """
-    aa_mass = dict(mass.std_aa_mass)
+    # aa_mass = dict(mass.std_aa_mass)
     mod_aliases = {}
 
     keys = [x for x in config.keys() if x.startswith("variable_mod_")]
@@ -132,6 +137,7 @@ def generate_mod_variants(
 
 
 def generate_peptides(protein="AAAQQQQSMETK", **kwargs):
+    # under construction
 
     proteins = kwargs.get("proteins", ["AAAQQQQSMETK", "AAAQQQCPALK"])
     max_modis = kwargs.get("max_modis", 3)
@@ -154,7 +160,7 @@ def generate_peptides(protein="AAAQQQQSMETK", **kwargs):
             peptide, mod_aliases, max_mods_per_peptide=max_modis
         )
         peptides.append(peptide)
-        peptides += peptide_modis
+        peptides += peptide_modis  # this part is wrong, probably
     return peptides, aa_mass
 
 
@@ -180,3 +186,7 @@ def generate_theoretical_fragments(fasta_file, config=None, bin_width=0.5):
 
 
 #
+def prepare_matching_environment(conn):
+    mod_defs = load_mod_definitions(conn)
+    aa_mass, mod_aliases = build_aa_mass_from_mod_def_dict(mod_defs)
+    return aa_mass, mod_aliases
