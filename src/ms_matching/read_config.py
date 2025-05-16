@@ -1,4 +1,6 @@
+import os
 import re
+import warnings
 
 
 def parse_msfragger_config(config_path):
@@ -6,6 +8,8 @@ def parse_msfragger_config(config_path):
     Parses a simple MSFragger-style key=value config file into a dict.
     Ignores comments, blank lines, and parses numeric values when possible.
     """
+    if not os.path.exists(config_path):
+        raise ValueError(f"{config_path} does not exist")
     config = {}
     with open(config_path) as f:
         for line in f:
@@ -35,6 +39,19 @@ def parse_msfragger_config(config_path):
 def extract_mod_definitions(config: dict, tag_map: dict = None) -> dict:
     tag_map = tag_map or {}
 
+    # def parse_entry(item):
+    #     key, value = item
+    #     if not key.startswith("variable_mod_"):
+    #         return None
+    #     parts = re.split(r"\s+", value.strip())
+    #     if len(parts) < 2:
+    #         return None
+
+    #     delta_mass = float(parts[0])
+    #     targets = parts[1]
+    #     rounded_mass = round(delta_mass, 3)
+    #     tag = tag_map.get(rounded_mass, f"mod{int(abs(delta_mass * 1000))}")
+    #     return tag, {"mass": delta_mass, "targets": targets}
     def parse_entry(item):
         key, value = item
         if not key.startswith("variable_mod_"):
@@ -42,15 +59,20 @@ def extract_mod_definitions(config: dict, tag_map: dict = None) -> dict:
         parts = re.split(r"\s+", value.strip())
         if len(parts) < 2:
             return None
-
-        delta_mass = float(parts[0])
+        try:
+            delta_mass = float(parts[0])
+        except ValueError:
+            warnings.warn(f"Invalid mass value in mod line: {key} = {value}")
+            return None
         targets = parts[1]
         rounded_mass = round(delta_mass, 3)
         tag = tag_map.get(rounded_mass, f"mod{int(abs(delta_mass * 1000))}")
         return tag, {"mass": delta_mass, "targets": targets}
 
-    return {
+    res = {
         tag: mod_info
-        for tag, mod_info in map(parse_entry, config.items())
-        if tag is not None
+        for pair in map(parse_entry, config.items())
+        if pair is not None
+        for tag, mod_info in [pair]
     }
+    return res
