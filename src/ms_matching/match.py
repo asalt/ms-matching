@@ -9,6 +9,7 @@ def make_fragments(
     The function generates all possible m/z for fragments of types
     `types` and of charges from 1 to `maxharge`.
     """
+    # import pdb; pdb.set_trace()
     for i in range(1, len(peptide)):
         for ion_type in types:
             for charge in range(1, maxcharge + 1):

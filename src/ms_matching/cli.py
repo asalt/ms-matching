@@ -1,25 +1,53 @@
 # cli.py
 import argparse
-
-from ms_matching.match import do_match
+#from ms_matching.match import do_match
+from ms_matching import driver
 
 def main():
     parser = argparse.ArgumentParser(description="ms-matching")
     subparsers = parser.add_subparsers(required=True)
 
     # Create the parser for the "gct_to_excel" command.
-    parser_gct = subparsers.add_parser(
-        "match", help="Convert a GCT file to Excel."
+    parser_driver = subparsers.add_parser(
+        "run", help="run"
     )
-    parser_gct.set_defaults(func=do_match)
-    parser_gct.add_argument(
+
+
+
+
+    # arguments
+    # out
+    parser_driver.add_argument(
         "-o",
         "--outname",
         default="out.tsv",
         help="Output filename (default: %(default)s)",
     )
-    parser_gct.add_argument("root_path", help="root_path")
-    #
+
+    # config
+    parser_driver.add_argument(
+        "-s",
+        "--config",
+        default=None, # TODO set a default
+        help="Input config yaml file (default: %(default)s)",
+    )
+
+    parser_driver.add_argument("-d", "--db-path", default="fragments.db", help="SQLite database path")
+    parser_driver.add_argument("-f", "--fasta", required=True, help="Input FASTA file")
+
+
+    #parser_gct.add_argument("root_path", help="root_path")
+    #parser_gct.add_argument("root_path", help="root_path")
+
+
+    parser_driver.set_defaults(func=lambda args: driver.run(
+        config_path=args.config,
+        db_path=args.db_path,
+        fasta_path=args.fasta,
+        outname=args.outname,
+    ))
+    # end of driver parser
+
 
     # create the parser for something else
     parser_other = subparsers.add_parser("other", help="other")

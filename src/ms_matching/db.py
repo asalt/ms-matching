@@ -4,6 +4,7 @@ from contextlib import contextmanager
 import h5py
 import numpy as np
 from typing import List, Tuple, Optional, Dict
+import json
 
 
 @contextmanager
@@ -49,54 +50,91 @@ def create_schema(sqlite_conn: sqlite3.Connection) -> None:
         """CREATE TABLE IF NOT EXISTS mod_definitions (
             tag TEXT PRIMARY KEY,
             mass REAL NOT NULL,
-            targets TEXT NOT NULL
+            targets TEXT NOT NULL,
+            residues TEXT,
+            position TEXT
         );
     """
     )
 
 
+# def store_mod_definitions(
+#     mod_def_dict: Dict[str, Dict[str, float]], sqlite_conn: sqlite3.Connection
+# ) -> None:
+#     """
+#     Store mod definitions into the mod_definitions table.
+# 
+#     mod_def_dict: e.g. {
+#         'ox': {'mass': 15.9949, 'targets': 'M'},
+#         'ph': {'mass': 79.9663, 'targets': 'STY'}
+#     }
+#     """
+#     rows = [
+#         (tag, modinfo["mass"], modinfo["targets"])
+#         for tag, modinfo in mod_def_dict.items()
+#     ]
+# 
+#     # add logging here
+#     sqlite_conn.executemany(
+#         """
+#         INSERT OR REPLACE INTO mod_definitions (tag, mass, targets)
+#         VALUES (?, ?, ?)
+#     """,
+#         rows,
+#     )
+
 def store_mod_definitions(
     mod_def_dict: Dict[str, Dict[str, float]], sqlite_conn: sqlite3.Connection
 ) -> None:
-    """
-    Store mod definitions into the mod_definitions table.
-
-    mod_def_dict: e.g. {
-        'ox': {'mass': 15.9949, 'targets': 'M'},
-        'ph': {'mass': 79.9663, 'targets': 'STY'}
-    }
-    """
     rows = [
-        (tag, modinfo["mass"], modinfo["targets"])
+        (
+            tag,
+            modinfo["mass"],
+            modinfo.get("targets", ""),
+            json.dumps(modinfo.get("residues", [])),
+            modinfo.get("position"),
+        )
         for tag, modinfo in mod_def_dict.items()
     ]
 
-    # add logging here
     sqlite_conn.executemany(
         """
-        INSERT OR REPLACE INTO mod_definitions (tag, mass, targets)
-        VALUES (?, ?, ?)
-    """,
+        INSERT OR REPLACE INTO mod_definitions (tag, mass, targets, residues, position)
+        VALUES (?, ?, ?, ?, ?)
+        """,
         rows,
     )
 
 
-def load_mod_definitions(
-    sqlite_conn: sqlite3.Connection,
-) -> Dict[str, Dict[str, float]]:
-    """
-    Load mod definitions from the database into a dictionary.
+# def load_mod_definitions(
+#     sqlite_conn: sqlite3.Connection,
+# ) -> Dict[str, Dict[str, float]]:
+#     """
+#     Load mod definitions from the database into a dictionary.
+# 
+#     Returns: e.g. {
+#         'ox': {'mass': 15.9949, 'targets': 'M'},
+#         'ph': {'mass': 79.9663, 'targets': 'STY'}
+#     }
+#     """
+#     cur = sqlite_conn.execute("SELECT tag, mass, targets FROM mod_definitions")
+#     return {
+#         tag: {"mass": mass, "targets": targets} for tag, mass, targets in cur.fetchall()
+#     }
 
-    Returns: e.g. {
-        'ox': {'mass': 15.9949, 'targets': 'M'},
-        'ph': {'mass': 79.9663, 'targets': 'STY'}
-    }
-    """
-    cur = sqlite_conn.execute("SELECT tag, mass, targets FROM mod_definitions")
-    return {
-        tag: {"mass": mass, "targets": targets} for tag, mass, targets in cur.fetchall()
-    }
-
+def load_mod_definitions(sqlite_conn: sqlite3.Connection) -> Dict[str, Dict[str, float]]:
+    cur = sqlite_conn.execute(
+        "SELECT tag, mass, targets, residues, position FROM mod_definitions"
+    )
+    mod_defs = {}
+    for tag, mass, targets, residues_json, position in cur.fetchall():
+        mod_defs[tag] = {
+            "mass": mass,
+            "targets": targets,
+            "residues": json.loads(residues_json) if residues_json else [],
+            "position": position,
+        }
+    return mod_defs
 
 def store_peptide_fragments(
     peptide: str,
